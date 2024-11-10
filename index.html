@@ -54,7 +54,7 @@
         const msisdn = msisdnLine
           ? msisdnLine.split("RESULT FOR ")[1].replace(" ::.", "")
           : getValue(["MSISDN"]);
-        const age = getValue(["Age"]);
+        const age = getValue(["Age", "Usia", "AGE", "USIA"]);
         const lac = getValue(["LAC"]);
         const ci = getValue(["CI"]);
         const imsi = getValue(["IMSI"]);
@@ -65,7 +65,7 @@
         const provinsi = getValue(["PROVINSI"]);
         const perangkat = getValue(["Perangkat"]);
         const operator = getValue(["Operator", "PROVIDER"]);
-        const mapLink = getValue(["Map", "Maps", "MAP"]);
+        const mapLink = getValue(["Map", "Maps", "MAP", "Peta", "PETA"]);
         const towerLink = getValue(["Tower"]);
         // const datetime =
         //   getValue(["DATE", "datetime"]) ||

@@ -3,9 +3,9 @@
   <head>
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-    <meta http-equiv="X-UA-Compatible" content="ie=edge">
-    <meta name="robots" content="noindex, nofollow">
-    <meta name="google" content="notranslate">
+    <meta http-equiv="X-UA-Compatible" content="ie=edge" />
+    <meta name="robots" content="noindex, nofollow" />
+    <meta name="google" content="notranslate" />
     <title>Formatting Data Program</title>
     <style>
       #outputBox {
@@ -167,17 +167,22 @@
       `;
 
         document.getElementById("outputBox").innerHTML = output.trim();
-        document.getElementById("inputData").value = '';
+        document.getElementById("inputData").value = "";
       }
 
       function copyOutput() {
         const outputBox = document.getElementById("outputBox");
 
-        // Use text content instead of HTML to preserve alignment without <br> tags.
-        const textToCopy = `
-${outputBox.innerText.replace(/\n\n/g, "\n")}
-  `.trim();
+        // Get the text content of the output
+        let textToCopy = outputBox.innerText;
 
+        // Insert a line break before "Azimut Target" if it exists
+        textToCopy = textToCopy.replace(/(Azimut Target)/g, "\n$1");
+
+        // Trim any unnecessary leading/trailing whitespace
+        textToCopy = textToCopy.trim();
+
+        // Copy the formatted text to the clipboard
         navigator.clipboard
           .writeText(textToCopy)
           .then(() => {

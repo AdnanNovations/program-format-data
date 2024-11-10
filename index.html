@@ -153,12 +153,16 @@
 
       function copyOutput() {
         const outputBox = document.getElementById("outputBox");
-        const textToCopy = outputBox.innerHTML.replace(/<br>/g, "\n"); 
+
+        // Use text content instead of HTML to preserve alignment without <br> tags.
+        const textToCopy = `
+${outputBox.innerText.replace(/\n\n/g, "\n")}
+  `.trim();
 
         navigator.clipboard
           .writeText(textToCopy)
           .then(() => {
-            alert("Berhasil di-copy!");
+            alert("Berhasil di-copy dengan format yang benar!");
           })
           .catch((err) => {
             console.error("Gagal menyalin teks: ", err);

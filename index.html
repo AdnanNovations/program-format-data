@@ -76,14 +76,14 @@
         const latitude = getValue(["LAT", "LATITUDE", "Lat"]);
         const longitude = getValue(["LONG", "LONGITUDE", "Long"]);
 
-        const now = new Date();
-        const defaultDate = now.toLocaleDateString("en-GB");
-        const defaultTime = now.toLocaleTimeString("en-GB", {
-          hour: "2-digit",
-          minute: "2-digit",
-        });
+        // const now = new Date();
+        // const defaultDate = now.toLocaleDateString("en-GB");
+        // const defaultTime = now.toLocaleTimeString("en-GB", {
+        //   hour: "2-digit",
+        //   minute: "2-digit",
+        // });
 
-        const datetime = `${defaultDate} ${defaultTime}`;
+        // const datetime = `${defaultDate} ${defaultTime}`;
 
         let address =
           `
@@ -117,8 +117,9 @@
           address = alamatRaw ? alamatRaw : "-";
         }
 
+        // ${datetime !== "-" ? `${datetime}<br><br>` : ""}
+
         const output = `
-        ${datetime !== "-" ? `${datetime}<br><br>` : ""}
         MSISDN : ${msisdn}<br>
         Device : ${perangkat || "-"}<br>
         Age : ${age || "-"}<br>

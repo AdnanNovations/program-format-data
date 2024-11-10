@@ -143,13 +143,13 @@
         ${
           mapLink
             ? `<br>${
-                mapLink.trim() !== ""
+                mapLink.trim() !== "" && mapLink !== "-"
                   ? towerLink !== "-"
                     ? "Azimut Target"
                     : "Map"
                   : ""
               }${
-                mapLink.trim() !== ""
+                mapLink.trim() !== "" && mapLink !== "-"
                   ? `: ${mapLink.trim() !== "" ? mapLink : "-"}`
                   : ""
               }`

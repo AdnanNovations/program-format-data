@@ -1,0 +1,63 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Program Format Data</title>
+</head>
+<body>
+  <h3>Masukkan Data:</h3>
+  <textarea id="inputData" rows="20" cols="100">
+
+  </textarea>
+  <br>
+  <button onclick="formatData()">Format Data</button>
+  <h3>Hasil:</h3>
+  <div id="output"></div>
+
+  <script>
+    function formatData() {
+      const inputText = document.getElementById('inputData').value;
+      const lines = inputText.split('\n');
+
+      const getValue = (keyword) => {
+        const line = lines.find(line => line.startsWith(keyword));
+        return line ? line.split(': ')[1] : '-';
+      };
+
+      const msisdn = getValue('MSISDN');
+      const age = getValue('Age');
+      const lac = getValue('LAC');
+      const ci = getValue('CI');
+      const imsi = getValue('IMSI');
+      const imei = getValue('IMEI');
+      const alamat = getValue('Alamat');
+      const mapLink = getValue('Map');
+      const towerLink = getValue('Tower');
+      const perangkat = getValue('Perangkat');
+      const operator = getValue('Operator');
+      const datetime = getValue('datetime');
+
+      const now = new Date();
+      const defaultDate = now.toLocaleDateString('en-GB');
+      const defaultTime = now.toLocaleTimeString('en-GB', { hour: '2-digit', minute: '2-digit' });
+
+      const output = `
+        ${datetime !== '-' ? datetime : `${defaultDate} ${defaultTime}`}<br><br>
+        ${msisdn}<br>
+        Device : ${perangkat}<br>
+        Age : ${age}<br>
+        IMEI : ${imei || '-'}<br>
+        IMSI : ${imsi}<br>
+        LAC-CID : ${lac}-${ci}<br>
+        NETWORK : ${operator}<br><br>
+        ALAMAT : ${alamat}<br>
+        Tower: ${towerLink !== '-' ? `<a href="${towerLink}" target="_blank">${towerLink}</a>` : '-'}<br>
+        Azimut Target: ${mapLink !== '-' && mapLink !== undefined && mapLink !== "" ? `<a href="${mapLink}" target="_blank">${mapLink}</a>` : '-'}
+      `;
+
+      document.getElementById('output').innerHTML = output.trim();
+    }
+  </script>
+</body>
+</html>

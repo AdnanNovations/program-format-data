@@ -1,61 +1,169 @@
 <!DOCTYPE html>
 <html lang="en">
-<head>
-  <meta charset="UTF-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>Program Format Data</title>
-</head>
-<body>
-  <h3>Masukkan Data:</h3>
-  <textarea id="inputData" rows="20" cols="100"></textarea>
-  <br>
-  <button onclick="formatData()">Format Data</button>
-  <h3>Hasil:</h3>
-  <div id="output"></div>
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Program Format Data</title>
+    <style>
+      #outputBox {
+        width: 100%;
+        height: 300px;
+        padding: 10px;
+        border: 1px solid #ccc;
+        border-radius: 5px;
+        resize: none;
+        font-family: Arial, sans-serif;
+        font-size: 14px;
+      }
+      #outputBox:focus {
+        outline: 2px solid #4a90e2;
+      }
+    </style>
+  </head>
+  <body>
+    <h3>Masukkan Data:</h3>
+    <textarea id="inputData" rows="20" cols="100"></textarea>
+    <br />
+    <button onclick="formatData()">Format Data</button>
 
-  <script>
-    function formatData() {
-      const inputText = document.getElementById('inputData').value;
-      const lines = inputText.split('\n');
+    <h3>Hasil:</h3>
+    <div id="outputBox" onclick="copyOutput()"></div>
 
-      const getValue = (keyword) => {
-        const line = lines.find(line => line.startsWith(keyword));
-        return line ? line.split(': ')[1] : '-';
-      };
+    <script>
+      function formatData() {
+        const inputText = document.getElementById("inputData").value;
+        const lines = inputText.split("\n");
 
-      const msisdn = getValue('MSISDN');
-      const age = getValue('Age');
-      const lac = getValue('LAC');
-      const ci = getValue('CI');
-      const imsi = getValue('IMSI');
-      const imei = getValue('IMEI');
-      const alamat = getValue('Alamat');
-      const mapLink = getValue('Map');
-      const towerLink = getValue('Tower');
-      const perangkat = getValue('Perangkat');
-      const operator = getValue('Operator');
-      const datetime = getValue('datetime');
+        const getValue = (keywords) => {
+          for (const keyword of keywords) {
+            const line = lines.find((line) => line.includes(keyword));
+            if (line)
+              return (
+                line.split(": ")[1] ||
+                line.split(" : ")[1] ||
+                line.split(":")[1]
+              );
+          }
+          return "-";
+        };
 
-      const now = new Date();
-      const defaultDate = now.toLocaleDateString('en-GB');
-      const defaultTime = now.toLocaleTimeString('en-GB', { hour: '2-digit', minute: '2-digit' });
+        // Fetch values using multiple keywords for flexibility
+        const msisdnLine = lines.find((line) =>
+          line.startsWith(".:: RESULT FOR")
+        );
+        const msisdn = msisdnLine
+          ? msisdnLine.split("RESULT FOR ")[1].replace(" ::.", "")
+          : getValue(["MSISDN"]);
+        const age = getValue(["Age"]);
+        const lac = getValue(["LAC"]);
+        const ci = getValue(["CI"]);
+        const imsi = getValue(["IMSI"]);
+        const imei = getValue(["IMEI"]);
+        const kelurahan = getValue(["KELURAHAN"]);
+        const kecamatan = getValue(["KECAMATAN"]);
+        const kabKota = getValue(["KAB/KOTA", "KOTA"]);
+        const provinsi = getValue(["PROVINSI"]);
+        const perangkat = getValue(["Perangkat"]);
+        const operator = getValue(["Operator", "PROVIDER"]);
+        const mapLink = getValue(["Map", "Maps", "MAP"]);
+        const towerLink = getValue(["Tower"]);
+        const datetime =
+          getValue(["DATE", "datetime"]) ||
+          lines.find((line) =>
+            line.match(/\d{4}-\d{2}-\d{2} \d{2}:\d{2}:\d{2}/)
+          ) ||
+          "-";
+        const latitude = getValue(["LAT", "LATITUDE", "Lat"]);
+        const longitude = getValue(["LONG", "LONGITUDE", "Long"]);
 
-      const output = `
-        ${datetime !== '-' ? datetime : `${defaultDate} ${defaultTime}`}<br><br>
-        ${msisdn}<br>
-        Device : ${perangkat}<br>
-        Age : ${age}<br>
-        IMEI : ${imei || '-'}<br>
-        IMSI : ${imsi}<br>
-        LAC-CID : ${lac}-${ci}<br>
-        NETWORK : ${operator}<br><br>
-        ALAMAT : ${alamat}<br>
-        Tower: ${towerLink !== '-' ? `<a href="${towerLink}" target="_blank">${towerLink}</a>` : '-'}<br><br>
-        Azimut Target: ${mapLink !== '-' && mapLink !== undefined && mapLink !== "" ? `<a href="${mapLink}" target="_blank">${mapLink}</a>` : '-'}
+        let address =
+          `
+        ${kelurahan ? `${kelurahan}, ` : ""}
+        ${kecamatan ? `${kecamatan}, ` : ""}
+        ${kabKota ? `${kabKota}, ` : ""}
+        ${provinsi ? `${provinsi}` : ""}` || "-";
+
+        // Address parsing logic
+        const alamatRaw = getValue(["Alamat", "ALAMAT"]);
+        if (
+          alamatRaw &&
+          (alamatRaw.includes("PROP") ||
+            alamatRaw.includes("KAB") ||
+            alamatRaw.includes("KEC") ||
+            alamatRaw.includes("KEL"))
+        ) {
+          // Detailed address format with PROP, KAB, KEC, KEL
+          const addressComponents = alamatRaw.split("|").reduce((acc, part) => {
+            const [label, value] = part.split(":");
+            acc[label.trim()] = value.trim();
+            return acc;
+          }, {});
+          address = `
+          ${addressComponents["PROP"] ? `${addressComponents["PROP"]}` : ""}
+          ${addressComponents["KAB"] ? `${addressComponents["KAB"]}, ` : ""}
+          ${addressComponents["KEC"] ? `${addressComponents["KEC"]}, ` : ""}
+          ${addressComponents["KEL"] ? `${addressComponents["KEL"]}, ` : ""}`;
+        } else if (alamatRaw) {
+          // General address format without specific labels
+          address = alamatRaw ? alamatRaw : "-";
+        }
+
+        const output = `
+        ${datetime !== "-" ? `${datetime}<br><br>` : ""}
+        MSISDN : ${msisdn}<br>
+        Device : ${perangkat || "-"}<br>
+        Age : ${age || "-"}<br>
+        IMEI : ${imei || "-"}<br>
+        IMSI : ${imsi || "-"}<br>
+        LAC-CID : ${lac && ci ? `${lac}-${ci}` : "-"}<br>
+        NETWORK : ${operator || "-"}<br><br>
+        ALAMAT : ${address}<br>
+        ${
+          towerLink !== "-"
+            ? `${
+                mapLink && mapLink.trim() !== "" && mapLink !== "-"
+                  ? ``
+                  : "Maps: "
+              }${towerLink}<br>`
+            : ""
+        }
+        ${
+          mapLink
+            ? `<br>${
+                mapLink.trim() !== ""
+                  ? towerLink !== "-"
+                    ? "Azimut Target"
+                    : "Map"
+                  : ""
+              }${
+                mapLink.trim() !== ""
+                  ? `: ${mapLink.trim() !== "" ? mapLink : "-"}`
+                  : ""
+              }`
+            : latitude && longitude
+            ? `<br>${
+                towerLink !== "-" ? "Azimut Target" : "Map"
+              }: https://maps.google.com/maps?q=${latitude},${longitude}`
+            : "-"
+        }
       `;
 
-      document.getElementById('output').innerHTML = output.trim();
-    }
-  </script>
-</body>
+        document.getElementById("outputBox").innerHTML = output.trim();
+      }
+
+      function copyOutput() {
+        const outputBox = document.getElementById("outputBox");
+        const textToCopy = outputBox.innerHTML.replace(/<br>/g, "\n"); 
+
+        navigator.clipboard
+          .writeText(textToCopy)
+          .then(() => {
+            alert("Berhasil di-copy!");
+          })
+          .catch((err) => {
+            console.error("Gagal menyalin teks: ", err);
+          });
+      }
+    </script>
+  </body>
 </html>

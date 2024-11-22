@@ -1,3 +1,4 @@
+import time
 from pyrogram import Client, filters
 import re
 import pandas as pd
@@ -5,6 +6,8 @@ import configparser
 from datetime import datetime
 from collections import defaultdict
 from apscheduler.schedulers.background import BackgroundScheduler
+import tkinter as tk
+from tkinter import ttk
 
 # Membaca konfigurasi dari file config.ini
 config = configparser.ConfigParser()
@@ -24,13 +27,10 @@ if not api_id or not api_hash or not bot_token:
 app = Client("telegram_bot", api_id=api_id, api_hash=api_hash, bot_token=bot_token)
 
 # Batas permintaan per pengguna
-MAX_PENDING_REQUESTS = 2
+MAX_PENDING_REQUESTS = 4
 
 # Antrean permintaan pengguna
 user_requests = defaultdict(list)
-
-# Status global bot
-bot_status = {"mode": "normal"}  # Mode default adalah freeze
 
 # Handler untuk perintah /start
 @app.on_message(filters.command("start"))
@@ -95,6 +95,9 @@ def handle_cekkuota_command(client, message):
     # Ambil username pengirim
     sender_username = message.from_user.username.lower() if message.from_user.username else None
 
+    config.read("config.ini")
+    bot_status = {"mode": config["Settings"].get("mode", "normal")}
+
     # Periksa apakah pengguna termasuk dalam daftar user
     if sender_username not in user_quotas:
         message.reply_text("Anda tidak memiliki akses untuk menggunakan perintah ini.")
@@ -137,59 +140,18 @@ def is_valid_indonesian_number(phone_number: str) -> bool:
     pattern = r"^08\d{8,11}$"
     return bool(re.match(pattern, phone_number))
 
-# Handler untuk perintah "freeze" dari admin
-@app.on_message(filters.command("freeze") & filters.private)
-def handle_off_command(client, message):
-    sender_username = message.from_user.username.lower() if message.from_user.username else None
-
-    # Periksa apakah pengirim adalah admin
-    if sender_username not in admin_usernames:
-        message.reply_text("Anda tidak memiliki akses untuk menggunakan perintah ini.")
-        return
-
-    # Ubah status bot ke "freeze"
-    bot_status["mode"] = "freeze"
-    message.reply_text("Bot sekarang dalam mode freeze / maintenance.")
-
-# Handler untuk perintah "normal" dari admin
-@app.on_message(filters.command("normal") & filters.private)
-def handle_full_command(client, message):
-    sender_username = message.from_user.username.lower() if message.from_user.username else None
-
-    # Periksa apakah pengirim adalah admin
-    if sender_username not in admin_usernames:
-        message.reply_text("Anda tidak memiliki akses untuk menggunakan perintah ini.")
-        return
-
-    # Ubah status bot ke "normal"
-    bot_status["mode"] = "normal"
-    message.reply_text("Bot kembali aktif dan memproses permintaan user secara normal.")
-
 # Handler untuk pengguna (A)
 @app.on_message(filters.command("location"))
 def handle_location_command(client, message):
     # Ambil username pengirim
     sender_username = message.from_user.username.lower() if message.from_user.username else None
 
+    config.read("config.ini")
+    bot_status = {"mode": config["Settings"].get("mode", "normal")}
+
     # Periksa mode bot
     if bot_status["mode"] == "freeze":
-        # Jika bot dalam mode off, kirim respons statis
-        now = datetime.now().strftime("%d-%m-%Y %H:%M")
-        phone_number = message.command[1] if len(message.command) > 1 else "Tidak diketahui"
-
-        static_response = (
-            f"{now}\n\n"
-            f"{phone_number}\n"
-            "Device : NULL NULL NULL\n"
-            "Age : NULL mins\n"
-            "IMEI : NULL\n"
-            "IMSI : NULL\n"
-            "LAC-CID : NULL - NULL\n"
-            "NETWORK : -\n\n"
-            "ALAMAT : PROP:NULL|KAB:NULL|KEC:NULL|KEL:NULL\n"
-            "http://maps.google.com/?q=NULL,NULL"
-        )
-        message.reply_text(static_response)
+        message.reply_text(f"Sistem Sedang Maintenance")
         return
 
     # Periksa apakah pengguna termasuk dalam daftar user
@@ -226,6 +188,7 @@ def handle_location_command(client, message):
 
     # Tambahkan permintaan ke antrean
     user_requests[user_id].append({"phone_number": phone_number, "message_id": message.id})
+    user_requests[user_id].append({"phone_number": phone_number, "message_id": message.id})
 
     # Kirim notifikasi dan permintaan ke admin
     client.send_message(
@@ -244,19 +207,12 @@ def handle_lm_command(client, message):
     # Ambil username pengirim
     sender_username = message.from_user.username.lower() if message.from_user.username else None
 
+    config.read("config.ini")
+    bot_status = {"mode": config["Settings"].get("mode", "normal")}
+
     # Periksa mode bot
     if bot_status["mode"] == "freeze":
-        # Jika bot dalam mode off, kirim respons statis
-        now = datetime.now().strftime("%d-%m-%Y %H:%M")
-        phone_number = message.command[1] if len(message.command) > 1 else "Tidak diketahui"
-
-        static_response = (
-            f"PENCARIAN LINI MASA\n"
-            f"MSISDN {phone_number}\n\n"
-            f"{now}\n\n"
-            "Tidak ada data saat ini."
-        )
-        message.reply_text(static_response)
+        message.reply_text(f"Sistem Sedang Maintenance")
         return
 
     # Periksa apakah pengguna termasuk dalam daftar user
@@ -295,6 +251,7 @@ def handle_lm_command(client, message):
     if user_id not in user_requests:
         user_requests[user_id] = []
     user_requests[user_id].append({"phone_number": phone_number, "message_id": message.id})
+    user_requests[user_id].append({"phone_number": phone_number, "message_id": message.id})
 
     # Kirim notifikasi dan permintaan ke admin
     client.send_message(
@@ -317,24 +274,12 @@ def handle_locimei_command(client, message):
     # Ambil username pengirim
     sender_username = message.from_user.username.lower() if message.from_user.username else None
 
+    config.read("config.ini")
+    bot_status = {"mode": config["Settings"].get("mode", "normal")}
+
     # Periksa mode bot
     if bot_status["mode"] == "freeze":
-        # Jika bot dalam mode off, kirim respons statis
-        now = datetime.now().strftime("%d-%m-%Y %H:%M")
-        imei_number = message.command[1] if len(message.command) > 1 else "Tidak diketahui"
-
-        static_response = (
-            f"{now}\n\n"
-            f"IMEI: {imei_number}\n"
-            "Device : NULL NULL NULL\n"
-            "Age : NULL mins\n"
-            "IMSI : NULL\n"
-            "LAC-CID : NULL - NULL\n"
-            "NETWORK : -\n\n"
-            "ALAMAT : PROP:NULL|KAB:NULL|KEC:NULL|KEL:NULL\n"
-            "http://maps.google.com/?q=NULL,NULL"
-        )
-        message.reply_text(static_response)
+        message.reply_text(f"Sistem Sedang Maintenance")
         return
 
     # Periksa apakah pengguna termasuk dalam daftar user
@@ -370,6 +315,7 @@ def handle_locimei_command(client, message):
     save_user_data("users.xlsx")  # Simpan perubahan ke file Excel
 
     # Tambahkan permintaan ke antrean
+    user_requests[user_id].append({"imei": imei_number, "message_id": message.id})
     user_requests[user_id].append({"imei": imei_number, "message_id": message.id})
 
     # Kirim notifikasi dan permintaan ke admin
@@ -678,7 +624,9 @@ def handle_announcement(client, message):
     failed_users = []
     for username in user_usernames:
         try:
-            client.send_message(f"@{username}", f"📢 PENGUMUMAN: {announcement_message}")
+            for _ in range(10):  # Loop 10 times
+                client.send_message(f"@{username}", f"📢 PENGUMUMAN: {announcement_message}")
+                time.sleep(1)  # Wait for 1 second before sending the next message
         except Exception as e:
             failed_users.append(username)
 
@@ -759,12 +707,20 @@ IMSI : {imsi or "-"}
 LAC-CID : {lac + "-" + ci if lac and ci else "-"}
 NETWORK : {operator or "-"}
 \nALAMAT : {address}
-{tower_link if tower_link != "-" else ""}
-{(f"\nAzimut Target: {map_link}" if map_link and map_link.strip() != "-" else "") if map_link else ""}
-{(f"Map: https://maps.google.com/maps?q={latitude},{longitude}" if latitude and longitude else "") if not map_link else ""}
-""".strip()
+"""
 
-    return output.strip()
+    # Handle tower_link, map_link, and coordinates
+    if tower_link != "-":
+        output += f"\nAzimut Target: {map_link}" if map_link and map_link.strip() != "-" else ""
+    else:
+        output += f"\nMap: {map_link}" if map_link and map_link.strip() != "-" else ""
+
+    # Jika map_link kosong, cek apakah ada koordinat (latitude dan longitude)
+    if not map_link and latitude and longitude:
+        output += f"\nMap: https://maps.google.com/maps?q={latitude},{longitude}"
+
+    output = output.strip()
+    return output
 
 
 def format_data_lm(raw_text):

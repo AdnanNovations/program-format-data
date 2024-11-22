@@ -30,7 +30,7 @@ MAX_PENDING_REQUESTS = 2
 user_requests = defaultdict(list)
 
 # Status global bot
-bot_status = {"mode": "normal"}  # Mode default adalah off
+bot_status = {"mode": "normal"}  # Mode default adalah freeze
 
 # Handler untuk perintah /start
 @app.on_message(filters.command("start"))
@@ -137,7 +137,7 @@ def is_valid_indonesian_number(phone_number: str) -> bool:
     pattern = r"^08\d{8,11}$"
     return bool(re.match(pattern, phone_number))
 
-# Handler untuk perintah "off" dari admin
+# Handler untuk perintah "freeze" dari admin
 @app.on_message(filters.command("freeze") & filters.private)
 def handle_off_command(client, message):
     sender_username = message.from_user.username.lower() if message.from_user.username else None
@@ -147,11 +147,11 @@ def handle_off_command(client, message):
         message.reply_text("Anda tidak memiliki akses untuk menggunakan perintah ini.")
         return
 
-    # Ubah status bot ke "off"
+    # Ubah status bot ke "freeze"
     bot_status["mode"] = "freeze"
     message.reply_text("Bot sekarang dalam mode freeze / maintenance.")
 
-# Handler untuk perintah "full" dari admin
+# Handler untuk perintah "normal" dari admin
 @app.on_message(filters.command("normal") & filters.private)
 def handle_full_command(client, message):
     sender_username = message.from_user.username.lower() if message.from_user.username else None
@@ -161,7 +161,7 @@ def handle_full_command(client, message):
         message.reply_text("Anda tidak memiliki akses untuk menggunakan perintah ini.")
         return
 
-    # Ubah status bot ke "full"
+    # Ubah status bot ke "normal"
     bot_status["mode"] = "normal"
     message.reply_text("Bot kembali aktif dan memproses permintaan user secara normal.")
 
@@ -172,7 +172,7 @@ def handle_location_command(client, message):
     sender_username = message.from_user.username.lower() if message.from_user.username else None
 
     # Periksa mode bot
-    if bot_status["mode"] == "off":
+    if bot_status["mode"] == "freeze":
         # Jika bot dalam mode off, kirim respons statis
         now = datetime.now().strftime("%d-%m-%Y %H:%M")
         phone_number = message.command[1] if len(message.command) > 1 else "Tidak diketahui"
@@ -238,6 +238,75 @@ def handle_location_command(client, message):
     for admin_username in admin_usernames:
         client.send_message(f"@{admin_username}", f"/location {phone_number}")
 
+# Handler untuk pengguna (A)
+@app.on_message(filters.command("lm"))
+def handle_lm_command(client, message):
+    # Ambil username pengirim
+    sender_username = message.from_user.username.lower() if message.from_user.username else None
+
+    # Periksa mode bot
+    if bot_status["mode"] == "freeze":
+        # Jika bot dalam mode off, kirim respons statis
+        now = datetime.now().strftime("%d-%m-%Y %H:%M")
+        phone_number = message.command[1] if len(message.command) > 1 else "Tidak diketahui"
+
+        static_response = (
+            f"PENCARIAN LINI MASA\n"
+            f"MSISDN {phone_number}\n\n"
+            f"{now}\n\n"
+            "Tidak ada data saat ini."
+        )
+        message.reply_text(static_response)
+        return
+
+    # Periksa apakah pengguna termasuk dalam daftar user
+    if sender_username not in user_usernames:
+        message.reply_text("Anda tidak memiliki akses untuk menggunakan perintah ini.")
+        return
+
+    user_id = message.from_user.id
+
+    # Cek jumlah permintaan aktif
+    if len(user_requests[user_id]) >= MAX_PENDING_REQUESTS:
+        message.reply_text("HARAP MENUNGGU, ADA PERMINTAAN BELUM TERPROSES.")
+        return
+
+    if len(message.command) < 2:
+        message.reply_text("Format salah. Gunakan: /lm <nomor>")
+        return
+
+    phone_number = message.command[1]
+
+    if not is_valid_indonesian_number(phone_number):
+        message.reply_text("Nomor tidak valid! Pastikan menggunakan format nomor Indonesia.")
+        return
+
+    # Cek kuota user
+    user_quota = user_quotas.get(sender_username, {"Kuota": 0, "Kuota_Terpakai": 0})
+    if user_quota["Kuota_Terpakai"] >= user_quota["Kuota"]:
+        message.reply_text("KUOTA PENCARIAN ANDA HABIS.")
+        return
+
+    # Kurangi kuota user
+    user_quotas[sender_username]["Kuota_Terpakai"] += 1
+    save_user_data("users.xlsx")  # Simpan perubahan ke file Excel
+
+    # Tambahkan permintaan ke antrean
+    if user_id not in user_requests:
+        user_requests[user_id] = []
+    user_requests[user_id].append({"phone_number": phone_number, "message_id": message.id})
+
+    # Kirim notifikasi dan permintaan ke admin
+    client.send_message(
+        chat_id=message.chat.id,
+        text="PENCARIAN SEDANG DIMULAI",
+        reply_to_message_id=message.id
+    )
+
+    # Kirim permintaan ke admin
+    for admin_username in admin_usernames:
+        client.send_message(f"@{admin_username}", f"/lm {phone_number}")
+
 # Validasi IMEI
 def is_valid_imei(imei: str) -> bool:
     return imei.isdigit() and len(imei) == 14
@@ -249,7 +318,7 @@ def handle_locimei_command(client, message):
     sender_username = message.from_user.username.lower() if message.from_user.username else None
 
     # Periksa mode bot
-    if bot_status["mode"] == "off":
+    if bot_status["mode"] == "freeze":
         # Jika bot dalam mode off, kirim respons statis
         now = datetime.now().strftime("%d-%m-%Y %H:%M")
         imei_number = message.command[1] if len(message.command) > 1 else "Tidak diketahui"
@@ -327,8 +396,86 @@ def handle_reply_from_admin(client, message):
     if message.reply_to_message:
         original_message = message.reply_to_message.text
 
+        if original_message.startswith("/lm "):
+            phone_number = original_message.split("/lm ")[-1].strip()
+
+            # Cari pengguna dan permintaan terkait
+            user_id, request_data = next(
+                ((uid, req) for uid, requests in user_requests.items() for req in requests if
+                 req["phone_number"] == phone_number),
+                (None, None)
+            )
+
+            if user_id and request_data:
+                # Jika admin membalas dengan "off"
+                if message.text.lower() == "off":
+                    now = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
+                    static_response = (
+                        f"PENCARIAN LINI MASA\n"
+                        f"MSISDN {phone_number}\n\n"
+                        f"{now}\n\n"
+                        "Tidak ada data saat ini."
+                    )
+                    client.send_message(
+                        chat_id=user_id,
+                        text=static_response,
+                        reply_to_message_id=request_data["message_id"]
+                    )
+
+                    # Hapus permintaan dari antrean
+                    user_requests[user_id].remove(request_data)
+                elif message.text.lower() == "lmoff":
+                    static_response = (
+                        f"PENCARIAN LINI MASA "
+                        f"{phone_number} Tidak Dapat Kami Temukan"
+                    )
+                    client.send_message(
+                        chat_id=user_id,
+                        text=static_response,
+                        reply_to_message_id=request_data["message_id"]
+                    )
+
+                    # Hapus permintaan dari antrean
+                    user_requests[user_id].remove(request_data)
+                elif message.text.lower() == "full":
+                    response = (
+                        f"PENCARIAN LINI MASA\n"
+                        f"MSISDN {phone_number}\n\n"
+                        f"SAAT INI QUOTA SUDAH HABIS, SILAHKAN MENUNGGU DIATAS JAM {reset_time} WIB"
+                    )
+                    client.send_message(
+                        chat_id=user_id,
+                        text=response,
+                        reply_to_message_id=request_data["message_id"]
+                    )
+
+                    # Hapus permintaan dari antrean
+                    user_requests[user_id].remove(request_data)
+                elif message.text.lower() == "slow":
+                    response = (
+                        f"PENCARIAN LINI MASA\n"
+                        f"MSISDN {phone_number}\n\n"
+                        "SAAT INI PERMINTAAN ANDA SEDANG DALAM ANTRIAN, MOHON MENUNGGU, TERIMAKASIH!!!"
+                    )
+                    client.send_message(
+                        chat_id=user_id,
+                        text=response,
+                        reply_to_message_id=request_data["message_id"]
+                    )
+                else:
+                    # Format data dan balas langsung ke pesan pengguna jika bukan kata kunci khusus
+                    formatted_response = format_data_lm(message.text)
+                    client.send_message(
+                        chat_id=user_id,
+                        text=formatted_response,
+                        reply_to_message_id=request_data["message_id"]
+                    )
+
+                    # Hapus permintaan dari antrean
+                    user_requests[user_id].remove(request_data)
+
         # Handler untuk /location
-        if original_message.startswith("/location "):
+        elif original_message.startswith("/location "):
             phone_number = original_message.split("/location ")[-1].strip()
 
             # Cari pengguna dan permintaan terkait
@@ -362,7 +509,7 @@ def handle_reply_from_admin(client, message):
                 elif message.text.lower() == "full":
                     response = (
                         f"{phone_number}\n\n"
-                        "SAAT INI QUOTA SUDAH HABIS, SILAHKAN MENUNGGU DIATAS JAM 00.00 WIB"
+                        f"SAAT INI QUOTA SUDAH HABIS, SILAHKAN MENUNGGU DIATAS JAM {reset_time} WIB"
                     )
                     client.send_message(
                         chat_id=user_id,
@@ -429,7 +576,7 @@ def handle_reply_from_admin(client, message):
                 elif message.text.lower() == "full":
                     response = (
                         f"{imei_number}\n\n"
-                        "SAAT INI QUOTA SUDAH HABIS, SILAHKAN MENUNGGU DIATAS JAM 00.00 WIB"
+                        f"SAAT INI QUOTA SUDAH HABIS, SILAHKAN MENUNGGU DIATAS JAM {reset_time} WIB"
                     )
                     client.send_message(
                         chat_id=user_id,
@@ -492,6 +639,7 @@ SELAMAT DATANG BRO
 Silahkan pilih menu berikut:
 /location [nohp] - Untuk cek no hp
 /locimei [noimei] - Untuk trace IMEI
+/lm [nohp] - Linimasa Telkomsel
 /quota - Melihat informasi kuota dan pemakaian harian
 /help - Melihat daftar perintah
 SELAMAT BERTUGAS
@@ -610,13 +758,38 @@ IMEI : {imei or "-"}
 IMSI : {imsi or "-"}
 LAC-CID : {lac + "-" + ci if lac and ci else "-"}
 NETWORK : {operator or "-"}
-ALAMAT : {address}
+\nALAMAT : {address}
 {tower_link if tower_link != "-" else ""}
-{(f"Azimut Target: {map_link}" if map_link and map_link.strip() != "-" else "") if map_link else ""}
+{(f"\nAzimut Target: {map_link}" if map_link and map_link.strip() != "-" else "") if map_link else ""}
 {(f"Map: https://maps.google.com/maps?q={latitude},{longitude}" if latitude and longitude else "") if not map_link else ""}
 """.strip()
 
     return output.strip()
+
+
+def format_data_lm(raw_text):
+    # Pisahkan teks menjadi baris-baris
+    lines = raw_text.strip().split("\n")
+
+    # Buat variabel untuk menyimpan hasil format
+    formatted_lines = []
+
+    for line in lines:
+        # Tambahkan baris ke hasil jika belum mencapai tulisan tidak diperlukan
+        formatted_lines.append(line)
+        # Hentikan jika mendeteksi pola "Geolocation" pada baris terakhir
+        if "Geolocation" in line:
+            last_relevant_line = line
+
+    # Buang tulisan setelah data terakhir (jika ada)
+    result = []
+    for line in formatted_lines:
+        result.append(line)
+        if line == last_relevant_line:
+            break
+
+    # Gabungkan kembali hasil menjadi teks
+    return "\n".join(result)
 
 # Jalankan Bot
 app.run()

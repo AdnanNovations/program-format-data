@@ -6,8 +6,6 @@ import configparser
 from datetime import datetime
 from collections import defaultdict
 from apscheduler.schedulers.background import BackgroundScheduler
-import tkinter as tk
-from tkinter import ttk
 
 # Membaca konfigurasi dari file config.ini
 config = configparser.ConfigParser()
@@ -20,11 +18,19 @@ bot_token = config["Telegram"].get("bot_token")
 # Membaca reset_time dari file konfigurasi
 reset_time = config["Settings"].get("reset_time", "07:00")  # Default ke 07:00 jika tidak ditemukan
 
+# Fungsi untuk membaca status bot
+def get_bot_status():
+    config.read("config.ini")
+    mode = config["Settings"].get("mode", "normal")
+    return {"mode": mode}
+
 # Validasi konfigurasi
 if not api_id or not api_hash or not bot_token:
     raise ValueError("Konfigurasi Telegram tidak lengkap. Pastikan api_id, api_hash, dan bot_token diatur.")
 
+print("Starting the bot...")
 app = Client("telegram_bot", api_id=api_id, api_hash=api_hash, bot_token=bot_token)
+print("Client initialized.")
 
 # Batas permintaan per pengguna
 MAX_PENDING_REQUESTS = 4
@@ -40,9 +46,8 @@ def handle_start_command(client, message):
 
     # Kirim pesan selamat datang
     welcome_message = (
-        f"Selamat Datang di AdnanNovations Formatter, {user_name}!\n\n"
-        "Silakan ketik /help untuk mengetahui commands yang tersedia.\n"
-        "Kami siap membantu format data Anda secara efisien. 😊"
+        f"Selamat Datang, {user_name}!\n\n"
+        "Silakan ketik /help untuk mengetahui commands yang tersedia."
     )
     message.reply_text(welcome_message)
 
@@ -95,8 +100,11 @@ def handle_cekkuota_command(client, message):
     # Ambil username pengirim
     sender_username = message.from_user.username.lower() if message.from_user.username else None
 
-    config.read("config.ini")
-    bot_status = {"mode": config["Settings"].get("mode", "normal")}
+    # Periksa mode bot
+    bot_status = get_bot_status()
+    if bot_status["mode"] == "freeze":
+        message.reply_text(f"Sistem Sedang Maintenance")
+        return
 
     # Periksa apakah pengguna termasuk dalam daftar user
     if sender_username not in user_quotas:
@@ -146,10 +154,8 @@ def handle_location_command(client, message):
     # Ambil username pengirim
     sender_username = message.from_user.username.lower() if message.from_user.username else None
 
-    config.read("config.ini")
-    bot_status = {"mode": config["Settings"].get("mode", "normal")}
-
     # Periksa mode bot
+    bot_status = get_bot_status()
     if bot_status["mode"] == "freeze":
         message.reply_text(f"Sistem Sedang Maintenance")
         return
@@ -207,10 +213,8 @@ def handle_lm_command(client, message):
     # Ambil username pengirim
     sender_username = message.from_user.username.lower() if message.from_user.username else None
 
-    config.read("config.ini")
-    bot_status = {"mode": config["Settings"].get("mode", "normal")}
-
     # Periksa mode bot
+    bot_status = get_bot_status()
     if bot_status["mode"] == "freeze":
         message.reply_text(f"Sistem Sedang Maintenance")
         return
@@ -274,10 +278,8 @@ def handle_locimei_command(client, message):
     # Ambil username pengirim
     sender_username = message.from_user.username.lower() if message.from_user.username else None
 
-    config.read("config.ini")
-    bot_status = {"mode": config["Settings"].get("mode", "normal")}
-
     # Periksa mode bot
+    bot_status = get_bot_status()
     if bot_status["mode"] == "freeze":
         message.reply_text(f"Sistem Sedang Maintenance")
         return
@@ -747,5 +749,4 @@ def format_data_lm(raw_text):
     # Gabungkan kembali hasil menjadi teks
     return "\n".join(result)
 
-# Jalankan Bot
 app.run()

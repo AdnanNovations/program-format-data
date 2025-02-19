@@ -138,6 +138,16 @@ def check_reset_time():
     if now == reset_time:
         reset_user_quotas()
 
+def remove_message_by_id(user_id, message_id_to_remove):
+    if user_id in user_requests:
+        # Filter out the message with the specified message_id
+        user_requests[user_id] = [
+            request for request in user_requests[user_id] if request["message_id"] != message_id_to_remove
+        ]
+        # Optional: Remove user_id key if the list is empty
+        if not user_requests[user_id]:
+            del user_requests[user_id]
+
 # Inisialisasi jadwal dengan apscheduler
 scheduler = BackgroundScheduler()
 scheduler.add_job(check_reset_time, "interval", minutes=1)
@@ -145,7 +155,7 @@ scheduler.start()
 
 # Validasi Nomor Indonesia
 def is_valid_indonesian_number(phone_number: str) -> bool:
-    pattern = r"^08\d{8,11}$"
+    pattern = r"^(08\d{8,11}|62\d{8,13})$"
     return bool(re.match(pattern, phone_number))
 
 # Handler untuk pengguna (A)
@@ -254,6 +264,7 @@ def handle_lm_command(client, message):
     # Tambahkan permintaan ke antrean
     if user_id not in user_requests:
         user_requests[user_id] = []
+
     user_requests[user_id].append({"phone_number": phone_number, "message_id": message.id})
     user_requests[user_id].append({"phone_number": phone_number, "message_id": message.id})
 
@@ -685,19 +696,29 @@ def format_data(input_text):
 """.strip() or "-"
 
     alamat_raw = get_value(["Alamat", "ALAMAT"])
-    if alamat_raw and any(x in alamat_raw for x in ["PROP", "KAB", "KEC", "KEL"]):
-        address_components = {}
-        for part in alamat_raw.split("|"):
-            label, value = part.split(":", 1)
-            address_components[label.strip()] = value.strip()
-        address = f"""
-{address_components.get("PROP", "")}
-{address_components.get("KAB", "") + ", " if "KAB" in address_components else ""}
-{address_components.get("KEC", "") + ", " if "KEC" in address_components else ""}
-{address_components.get("KEL", "") + ", " if "KEL" in address_components else ""}
-""".strip()
-    elif alamat_raw:
-        address = alamat_raw.strip()
+    if alamat_raw:
+        # Hapus header yang tidak relevan seperti "=====- Alamat -======"
+        alamat_raw = alamat_raw.replace("=====- Alamat -======", "").strip()
+
+        # Periksa apakah format masukan sesuai dengan pola "PROP", "KAB", "KEC", "KEL"
+        if any(x in alamat_raw for x in ["PROP", "KAB", "KEC", "KEL"]):
+            address_components = {}
+            for part in alamat_raw.split("|"):
+                if ":" in part:  # Pastikan ada pemisah label dan nilai
+                    label, value = part.split(":", 1)
+                    address_components[label.strip()] = value.strip()
+            address = f"""
+    {address_components.get("PROP", "")}
+    {address_components.get("KAB", "") + ", " if "KAB" in address_components else ""}
+    {address_components.get("KEC", "") + ", " if "KEC" in address_components else ""}
+    {address_components.get("KEL", "") + ", " if "KEL" in address_components else ""}
+    """.strip()
+        else:
+            # Jika format tidak sesuai, gunakan data mentah tanpa modifikasi
+            address = alamat_raw.strip()
+    else:
+        # Gunakan "-" jika tidak ada alamat
+        address = "-"
 
     # Generate final output
     output = f"""
@@ -713,7 +734,8 @@ NETWORK : {operator or "-"}
 
     # Handle tower_link, map_link, and coordinates
     if tower_link != "-":
-        output += f"\nAzimut Target: {map_link}" if map_link and map_link.strip() != "-" else ""
+        output += f"\nMap: {tower_link}" if tower_link and tower_link.strip() != "-" else ""
+        output += f"\n\nAzimut Target: {map_link}" if map_link and map_link.strip() != "-" else ""
     else:
         output += f"\nMap: {map_link}" if map_link and map_link.strip() != "-" else ""
 

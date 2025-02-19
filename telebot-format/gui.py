@@ -39,7 +39,7 @@ def start_bot():
 # Fungsi untuk menjalankan GUI
 def create_gui():
     root = tk.Tk()
-    root.title("AdnanNovations BOT")
+    root.title("Aesthetic BOT")
     root.geometry("300x150")
 
     # Label untuk status

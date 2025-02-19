@@ -665,15 +665,19 @@ def format_data(input_text):
         return "-"
 
     # Fetch values using multiple keywords for flexibility
+    # remove unneeded text if exists 🕵️ Hasil MSISDN Tracking
     msisdn_line = next((line for line in lines if line.startswith(".:: RESULT FOR")), None)
     msisdn = (
         msisdn_line.split("RESULT FOR ")[-1].replace(" ::.", "").strip()
         if msisdn_line
         else get_value(["MSISDN"])
     )
+    
+    date = get_value(["TANGGAL"])
     age = get_value(["Age", "Usia", "AGE", "USIA"])
     lac = get_value(["LAC"])
     ci = get_value(["CI"])
+    cgi = get_value(["CGI"])
     imsi = get_value(["IMSI"])
     imei = get_value(["IMEI"])
     kelurahan = get_value(["KELURAHAN"])
@@ -682,10 +686,24 @@ def format_data(input_text):
     provinsi = get_value(["PROVINSI"])
     perangkat = get_value(["Perangkat"])
     operator = get_value(["Operator", "PROVIDER"])
-    map_link = get_value(["Map", "Maps", "MAP", "Peta", "PETA"])
+    map_link = get_value(["Map", "Maps", "MAP", "Peta", "PETA", "MAPS"])
     tower_link = get_value(["Tower"])
-    latitude = get_value(["LAT", "LATITUDE", "Lat"])
-    longitude = get_value(["LONG", "LONGITUDE", "Long"])
+    # Try to get coordinates from KOORDINAT field first
+    koordinat = get_value(["KOORDINAT"])
+    if koordinat and koordinat != "-":
+        try:
+            latitude, longitude = koordinat.split(",")
+            latitude = latitude.strip()
+            longitude = longitude.strip()
+        except:
+            # Fallback to individual LAT/LONG fields if KOORDINAT parsing fails
+            latitude = get_value(["LAT", "LATITUDE", "Lat"])
+            longitude = get_value(["LONG", "LONGITUDE", "Long"])
+    else:
+        # If no KOORDINAT field, try individual LAT/LONG fields
+        latitude = get_value(["LAT", "LATITUDE", "Lat"]) 
+        longitude = get_value(["LONG", "LONGITUDE", "Long"])
+    
 
     # Address parsing logic
     address = f"""
@@ -722,11 +740,13 @@ def format_data(input_text):
 
     # Generate final output
     output = f"""
-{msisdn}
+Tanggal : {date}
+{msisdn if "🕵️ Hasil MSISDN Tracking" not in msisdn else ""}
 Device : {perangkat or "-"}
 Age : {age or "-"}
 IMEI : {imei or "-"}
 IMSI : {imsi or "-"}
+CGI : {cgi or "-"}
 LAC-CID : {lac + "-" + ci if lac and ci else "-"}
 NETWORK : {operator or "-"}
 \nALAMAT : {address}

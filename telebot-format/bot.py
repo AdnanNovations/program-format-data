@@ -663,6 +663,9 @@ def format_data(input_text):
                     or line.split(":", 1)[-1]
                 ).strip()
         return "-"
+    
+    # Remove the line containing "🕵️ Hasil MSISDN Tracking" if it exists
+    lines = [line for line in lines if "🕵️ Hasil MSISDN Tracking" not in line]
 
     # Fetch values using multiple keywords for flexibility
     # remove unneeded text if exists 🕵️ Hasil MSISDN Tracking
@@ -740,16 +743,15 @@ def format_data(input_text):
 
     # Generate final output
     output = f"""
-Tanggal : {date}
-{msisdn if "🕵️ Hasil MSISDN Tracking" not in msisdn else ""}
+{msisdn}
 Device : {perangkat or "-"}
 Age : {age or "-"}
 IMEI : {imei or "-"}
 IMSI : {imsi or "-"}
-CGI : {cgi or "-"}
-LAC-CID : {lac + "-" + ci if lac and ci else "-"}
+LAC-CID : {lac + "-" + ci if lac and ci else cgi or "-"}
 NETWORK : {operator or "-"}
 \nALAMAT : {address}
+Tanggal : {date}
 """
 
     # Handle tower_link, map_link, and coordinates

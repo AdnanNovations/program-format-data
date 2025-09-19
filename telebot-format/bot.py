@@ -450,7 +450,7 @@ def handle_reply_from_admin(client, message):
                         f"{now}\n\n"
                         f"IMEI: {phone_number}\n"
                         "Device : NULL NULL NULL\n"
-                        "Age : NULL mins\n"
+                        "Age : 0 menit\n"
                         "IMSI : NULL\n"
                         "LAC-CID : NULL - NULL\n"
                         "NETWORK : -\n\n"
@@ -517,7 +517,7 @@ def handle_reply_from_admin(client, message):
                         f"{now}\n\n"
                         f"IMEI: {imei_number}\n"
                         "Device : NULL NULL NULL\n"
-                        "Age : NULL mins\n"
+                        "Age : 0 menit\n"
                         "IMSI : NULL\n"
                         "LAC-CID : NULL - NULL\n"
                         "NETWORK : -\n\n"
@@ -678,6 +678,8 @@ def format_data(input_text):
     
     date = get_value(["TANGGAL"])
     age = get_value(["Age", "Usia", "AGE", "USIA"])
+    if age == "-" or not age or age.upper() == "KURANG DARI 1 MENIT":
+        age = "0 menit"
     lac = get_value(["LAC"])
     ci = get_value(["CI"])
     cgi = get_value(["CGI"])

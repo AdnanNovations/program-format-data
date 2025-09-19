@@ -657,11 +657,13 @@ def format_data(input_text):
         for keyword in keywords:
             line = next((line for line in lines if keyword in line), None)
             if line:
-                return (
-                    line.split(": ", 1)[-1]
-                    or line.split(" : ", 1)[-1]
-                    or line.split(":", 1)[-1]
-                ).strip()
+                # Try different split patterns
+                if ": " in line:
+                    return line.split(": ", 1)[-1].strip()
+                elif " : " in line:
+                    return line.split(" : ", 1)[-1].strip()
+                elif ":" in line:
+                    return line.split(":", 1)[-1].strip()
         return "-"
     
     # Remove the line containing "🕵️ Hasil MSISDN Tracking" if it exists
@@ -676,7 +678,7 @@ def format_data(input_text):
         else get_value(["MSISDN"])
     )
     
-    date = get_value(["TANGGAL"])
+    date = get_value(["TANGGAL", "datetime"])
     age = get_value(["Age", "Usia", "AGE", "USIA"])
     if age == "-" or not age or age.upper() == "KURANG DARI 1 MENIT":
         age = "0 menit"
@@ -689,8 +691,8 @@ def format_data(input_text):
     kecamatan = get_value(["KECAMATAN"])
     kab_kota = get_value(["KAB/KOTA", "KOTA"])
     provinsi = get_value(["PROVINSI"])
-    perangkat = get_value(["Perangkat"])
-    operator = get_value(["Operator", "PROVIDER"])
+    perangkat = get_value(["Perangkat", "Device", "DEVICE"])
+    operator = get_value(["Operator", "PROVIDER", "OPERATOR"])
     map_link = get_value(["Map", "Maps", "MAP", "Peta", "PETA", "MAPS"])
     tower_link = get_value(["Tower"])
     # Try to get coordinates from KOORDINAT field first

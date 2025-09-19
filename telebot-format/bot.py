@@ -685,6 +685,7 @@ def format_data(input_text):
     lac = get_value(["LAC"])
     ci = get_value(["CI"])
     cgi = get_value(["CGI"])
+
     imsi = get_value(["IMSI"])
     imei = get_value(["IMEI"])
     kelurahan = get_value(["KELURAHAN"])
@@ -752,7 +753,7 @@ Device : {perangkat or "-"}
 Age : {age or "-"}
 IMEI : {imei or "-"}
 IMSI : {imsi or "-"}
-LAC-CID : {lac + "-" + ci if lac and ci else cgi or "-"}
+LAC-CID : {cgi if cgi != "-" else (lac + "-" + ci if lac != "-" and ci != "-" else "-")}
 NETWORK : {operator or "-"}
 \nALAMAT : {address}
 Tanggal : {date}

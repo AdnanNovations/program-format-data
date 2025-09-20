@@ -204,7 +204,6 @@ def handle_location_command(client, message):
 
     # Tambahkan permintaan ke antrean
     user_requests[user_id].append({"phone_number": phone_number, "message_id": message.id})
-    user_requests[user_id].append({"phone_number": phone_number, "message_id": message.id})
 
     # Kirim notifikasi dan permintaan ke admin
     client.send_message(
@@ -265,7 +264,6 @@ def handle_lm_command(client, message):
     if user_id not in user_requests:
         user_requests[user_id] = []
 
-    user_requests[user_id].append({"phone_number": phone_number, "message_id": message.id})
     user_requests[user_id].append({"phone_number": phone_number, "message_id": message.id})
 
     # Kirim notifikasi dan permintaan ke admin
@@ -328,7 +326,6 @@ def handle_locimei_command(client, message):
     save_user_data("users.xlsx")  # Simpan perubahan ke file Excel
 
     # Tambahkan permintaan ke antrean
-    user_requests[user_id].append({"imei": imei_number, "message_id": message.id})
     user_requests[user_id].append({"imei": imei_number, "message_id": message.id})
 
     # Kirim notifikasi dan permintaan ke admin

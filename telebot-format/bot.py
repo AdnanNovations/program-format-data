@@ -713,21 +713,14 @@ def format_data(input_text):
         longitude = get_value(["LONG", "LONGITUDE", "Long"])
     
 
-    # Address parsing logic
-    address = f"""
-{kelurahan + ", " if kelurahan else ""}
-{kecamatan + ", " if kecamatan else ""}
-{kab_kota + ", " if kab_kota else ""}
-{provinsi if provinsi else ""}
-""".strip() or "-"
-
-    alamat_raw = get_value(["Alamat", "ALAMAT"])
-    if alamat_raw:
+    # Address parsing logic - prioritize "ALAMAT" over "ALAMAT 1", include "Alamat"
+    alamat_raw = get_value(["ALAMAT", "Alamat"])
+    if alamat_raw and alamat_raw != "-":
         # Hapus header yang tidak relevan seperti "=====- Alamat -======"
         alamat_raw = alamat_raw.replace("=====- Alamat -======", "").strip()
 
-        # Periksa apakah format masukan sesuai dengan pola "PROP", "KAB", "KEC", "KEL"
-        if any(x in alamat_raw for x in ["PROP", "KAB", "KEC", "KEL"]):
+        # Periksa apakah format masukan sesuai dengan pola "PROP:", "KAB:", "KEC:", "KEL:" (dengan separator |)
+        if any(x in alamat_raw for x in ["PROP:", "KAB:", "KEC:", "KEL:"]) and "|" in alamat_raw:
             address_components = {}
             for part in alamat_raw.split("|"):
                 if ":" in part:  # Pastikan ada pemisah label dan nilai
@@ -743,8 +736,21 @@ def format_data(input_text):
             # Jika format tidak sesuai, gunakan data mentah tanpa modifikasi
             address = alamat_raw.strip()
     else:
-        # Gunakan "-" jika tidak ada alamat
-        address = "-"
+        # Jika tidak ada field Alamat, coba gabungkan dari field individual
+        if provinsi != "-" or kab_kota != "-" or kecamatan != "-" or kelurahan != "-":
+            address_parts = []
+            if provinsi != "-":
+                address_parts.append(provinsi)
+            if kab_kota != "-":
+                address_parts.append(kab_kota)
+            if kecamatan != "-":
+                address_parts.append(kecamatan)
+            if kelurahan != "-":
+                address_parts.append(kelurahan)
+            address = ", ".join(address_parts)
+        else:
+            # Gunakan "-" jika tidak ada alamat sama sekali
+            address = "-"
 
     # Generate final output
     output = f"""
@@ -756,7 +762,6 @@ IMSI : {imsi or "-"}
 LAC-CID : {cgi if cgi != "-" else (lac + "-" + ci if lac != "-" and ci != "-" else "-")}
 NETWORK : {operator or "-"}
 \nALAMAT : {address}
-Tanggal : {date}
 """
 
     # Handle tower_link, map_link, and coordinates

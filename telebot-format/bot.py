@@ -685,10 +685,11 @@ def handle_help_command(client, message):
 Silahkan pilih menu berikut:
 /admin - Untuk mengecek status Anda sebagai admin
 /P [pesan] - Untuk pengumuman
-off
-lmoff
-full
-slow
+off - [UNTUK BALAS TRACE IMEI BILA TIDAK ADA HASIL]
+lmoff - [BILA LINIMASA TIDAK ADA HASIL]
+full - [KUOTA PENUH]
+slow - [SEDANG DALAM ANTRIAN]
+no - [HASIL PENCARIAN TIDAK ADA]
 /help - Melihat daftar perintah
 """
         message.reply_text(help_text_admin)

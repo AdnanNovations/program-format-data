@@ -418,6 +418,22 @@ def handle_reply_from_admin(client, message):
                         text=response,
                         reply_to_message_id=request_data["message_id"]
                     )
+                elif message.text.lower() == "null" or message.text.lower() == "no":
+                    now = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
+                    static_response = (
+                        f"PENCARIAN LINI MASA\n"
+                        f"MSISDN {phone_number}\n\n"
+                        f"{now}\n\n"
+                        "Tidak ada data saat ini."
+                    )
+                    client.send_message(
+                        chat_id=user_id,
+                        text=static_response,
+                        reply_to_message_id=request_data["message_id"]
+                    )
+
+                    # Hapus permintaan dari antrean
+                    user_requests[user_id].remove(request_data)
                 else:
                     # Format data dan balas langsung ke pesan pengguna jika bukan kata kunci khusus
                     formatted_response = format_data_lm(message.text)
@@ -485,6 +501,29 @@ def handle_reply_from_admin(client, message):
                         text=response,
                         reply_to_message_id=request_data["message_id"]
                     )
+                elif message.text.lower() == "null" or message.text.lower() == "no":
+                    static_response = (
+                        f"{phone_number}\n"
+                        "Device : -\n"
+                        "Age : NULL mins\n"
+                        "IMEI : NULL\n"
+                        "IMSI : NULL\n"
+                        "LAC-CID : NULL-NULL\n"
+                        "NETWORK : -\n\n"
+                        "ALAMAT : NULL\n"
+                        "    NULL, \n"
+                        "    NULL, \n"
+                        "    NULL,\n\n"
+                        "Map: http://maps.google.com/?q=NULL,NULL"
+                    )
+                    client.send_message(
+                        chat_id=user_id,
+                        text=static_response,
+                        reply_to_message_id=request_data["message_id"]
+                    )
+
+                    # Hapus permintaan dari antrean
+                    user_requests[user_id].remove(request_data)
                 else:
                     # Format data dan balas langsung ke pesan pengguna jika bukan kata kunci khusus
                     formatted_response = format_data(message.text)
@@ -552,6 +591,29 @@ def handle_reply_from_admin(client, message):
                         text=response,
                         reply_to_message_id=request_data["message_id"]
                     )
+                elif message.text.lower() == "null" or message.text.lower() == "no":
+                    static_response = (
+                        f"{imei_number}\n"
+                        "Device : -\n"
+                        "Age : NULL mins\n"
+                        "IMEI : NULL\n"
+                        "IMSI : NULL\n"
+                        "LAC-CID : NULL-NULL\n"
+                        "NETWORK : -\n\n"
+                        "ALAMAT : NULL\n"
+                        "    NULL, \n"
+                        "    NULL, \n"
+                        "    NULL,\n\n"
+                        "Map: http://maps.google.com/?q=NULL,NULL"
+                    )
+                    client.send_message(
+                        chat_id=user_id,
+                        text=static_response,
+                        reply_to_message_id=request_data["message_id"]
+                    )
+
+                    # Hapus permintaan dari antrean
+                    user_requests[user_id].remove(request_data)
                 else:
                     # Format data dan balas langsung ke pesan pengguna jika bukan kata kunci khusus
                     formatted_response = format_data(message.text)
@@ -689,8 +751,8 @@ def format_data(input_text):
     kecamatan = get_value(["KECAMATAN"])
     kab_kota = get_value(["KAB/KOTA", "KOTA"])
     provinsi = get_value(["PROVINSI"])
-    perangkat = get_value(["Perangkat", "Device", "DEVICE"])
-    operator = get_value(["Operator", "PROVIDER", "OPERATOR"])
+    perangkat = get_value(["Perangkat", "Device", "DEVICE", "PHONE"])
+    operator = get_value(["Operator", "PROVIDER", "OPERATOR", "NETWORK"])
     map_link = get_value(["Map", "Maps", "MAP", "Peta", "PETA", "MAPS"])
     tower_link = get_value(["Tower"])
     # Try to get coordinates from KOORDINAT field first
@@ -711,7 +773,7 @@ def format_data(input_text):
     
 
     # Address parsing logic - prioritize "ALAMAT" over "ALAMAT 1", include "Alamat"
-    alamat_raw = get_value(["ALAMAT", "Alamat"])
+    alamat_raw = get_value(["ALAMAT", "Alamat", "ADDRESS"])
     if alamat_raw and alamat_raw != "-":
         # Hapus header yang tidak relevan seperti "=====- Alamat -======"
         alamat_raw = alamat_raw.replace("=====- Alamat -======", "").strip()

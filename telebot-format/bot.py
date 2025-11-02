@@ -279,65 +279,107 @@ def handle_lm_command(client, message):
 
 # Validasi IMEI
 def is_valid_imei(imei: str) -> bool:
-    return imei.isdigit() and len(imei) == 14
+    return imei.isdigit() and len(imei) in [14, 15]
 
 # Handler untuk pengguna (A)
 @app.on_message(filters.command("locimei"))
 def handle_locimei_command(client, message):
-    # Ambil username pengirim
-    sender_username = message.from_user.username.lower() if message.from_user.username else None
+    try:
+        # Ambil username pengirim
+        sender_username = message.from_user.username.lower() if message.from_user.username else None
 
-    # Periksa mode bot
-    bot_status = get_bot_status()
-    if bot_status["mode"] == "freeze":
-        message.reply_text(f"Sistem Sedang Maintenance")
-        return
+        # Jika tidak ada username, berikan respons
+        if not sender_username:
+            message.reply_text("Anda harus memiliki username Telegram untuk menggunakan bot ini.")
+            print(f"[LOCIMEI] User {message.from_user.id} tidak memiliki username")
+            return
 
-    # Periksa apakah pengguna termasuk dalam daftar user
-    if sender_username not in user_usernames:
-        message.reply_text("Anda tidak memiliki akses untuk menggunakan perintah ini.")
-        return
+        # Periksa mode bot
+        bot_status = get_bot_status()
+        if bot_status["mode"] == "freeze":
+            message.reply_text("Sistem Sedang Maintenance")
+            print(f"[LOCIMEI] Bot dalam mode freeze, permintaan dari {sender_username} ditolak")
+            return
 
-    user_id = message.from_user.id
+        # Periksa apakah pengguna termasuk dalam daftar user
+        if sender_username not in user_usernames:
+            message.reply_text("Anda tidak memiliki akses untuk menggunakan perintah ini.")
+            print(f"[LOCIMEI] User {sender_username} tidak memiliki akses")
+            return
 
-    # Cek jumlah permintaan aktif
-    if len(user_requests[user_id]) >= MAX_PENDING_REQUESTS:
-        message.reply_text("HARAP MENUNGGU, ADA PERMINTAAN BELUM TERPROSES.")
-        return
+        user_id = message.from_user.id
 
-    if len(message.command) < 2:
-        message.reply_text("Format salah. Gunakan: /locimei <14_digit_imei>")
-        return
+        # Cek jumlah permintaan aktif
+        if len(user_requests[user_id]) >= MAX_PENDING_REQUESTS:
+            message.reply_text("HARAP MENUNGGU, ADA PERMINTAAN BELUM TERPROSES.")
+            print(f"[LOCIMEI] User {sender_username} memiliki terlalu banyak permintaan pending")
+            return
 
-    imei_number = message.command[1]
+        if len(message.command) < 2:
+            message.reply_text("Format salah. Gunakan: /locimei <14_atau_15_digit_imei>")
+            print(f"[LOCIMEI] User {sender_username} mengirim format salah")
+            return
 
-    if not is_valid_imei(imei_number):
-        message.reply_text("IMEI tidak valid! Pastikan IMEI terdiri dari 14 angka.")
-        return
+        imei_number = message.command[1]
 
-    # Cek kuota user
-    if user_quotas.get(sender_username, {"Kuota": 0, "Kuota_Terpakai": 0})["Kuota_Terpakai"] >= \
-            user_quotas.get(sender_username, {"Kuota": 0, "Kuota_Terpakai": 0})["Kuota"]:
-        message.reply_text("KUOTA PENCARIAN ANDA HABIS.")
-        return
+        if not is_valid_imei(imei_number):
+            message.reply_text("IMEI tidak valid! Pastikan IMEI terdiri dari 14 atau 15 angka.")
+            print(f"[LOCIMEI] User {sender_username} mengirim IMEI tidak valid: {imei_number}")
+            return
 
-    # Kurangi kuota user
-    user_quotas[sender_username]["Kuota_Terpakai"] += 1  # Tambahkan 1 ke kuota yang terpakai
-    save_user_data("users.xlsx")  # Simpan perubahan ke file Excel
+        # Cek kuota user
+        if user_quotas.get(sender_username, {"Kuota": 0, "Kuota_Terpakai": 0})["Kuota_Terpakai"] >= \
+                user_quotas.get(sender_username, {"Kuota": 0, "Kuota_Terpakai": 0})["Kuota"]:
+            message.reply_text("KUOTA PENCARIAN ANDA HABIS.")
+            print(f"[LOCIMEI] User {sender_username} kuota habis")
+            return
 
-    # Tambahkan permintaan ke antrean
-    user_requests[user_id].append({"imei": imei_number, "message_id": message.id})
+        # Kurangi kuota user
+        user_quotas[sender_username]["Kuota_Terpakai"] += 1  # Tambahkan 1 ke kuota yang terpakai
+        save_user_data("users.xlsx")  # Simpan perubahan ke file Excel
 
-    # Kirim notifikasi dan permintaan ke admin
-    client.send_message(
-        chat_id=message.chat.id,
-        text="PENCARIAN SEDANG DIMULAI",
-        reply_to_message_id=message.id
-    )
+        # Tambahkan permintaan ke antrean
+        user_requests[user_id].append({"imei": imei_number, "message_id": message.id})
 
-    # Kirim permintaan ke admin
-    for admin_username in admin_usernames:
-        client.send_message(f"@{admin_username}", f"/locimei {imei_number}")
+        # Kirim notifikasi dan permintaan ke admin
+        try:
+            client.send_message(
+                chat_id=message.chat.id,
+                text="PENCARIAN SEDANG DIMULAI",
+                reply_to_message_id=message.id
+            )
+            print(f"[LOCIMEI] Permintaan diterima dari {sender_username} untuk IMEI {imei_number}")
+        except Exception as e:
+            print(f"[LOCIMEI ERROR] Gagal mengirim konfirmasi ke user {sender_username}: {e}")
+            # Tetap lanjutkan ke admin
+
+        # Kirim permintaan ke admin
+        admin_success_count = 0
+        for admin_username in admin_usernames:
+            try:
+                client.send_message(f"@{admin_username}", f"/locimei {imei_number}")
+                admin_success_count += 1
+            except Exception as e:
+                print(f"[LOCIMEI ERROR] Gagal mengirim ke admin {admin_username}: {e}")
+
+        print(f"[LOCIMEI] Permintaan dikirim ke {admin_success_count}/{len(admin_usernames)} admin")
+
+        # Jika gagal kirim ke semua admin, beri tahu user
+        if admin_success_count == 0:
+            message.reply_text("Terjadi kesalahan saat mengirim permintaan ke admin. Silakan coba lagi.")
+            # Kembalikan kuota
+            user_quotas[sender_username]["Kuota_Terpakai"] -= 1
+            save_user_data("users.xlsx")
+            # Hapus dari antrean
+            user_requests[user_id].remove({"imei": imei_number, "message_id": message.id})
+            print(f"[LOCIMEI ERROR] Tidak ada admin yang menerima permintaan, kuota dikembalikan")
+
+    except Exception as e:
+        print(f"[LOCIMEI ERROR] Error tidak terduga: {e}")
+        try:
+            message.reply_text("Terjadi kesalahan saat memproses permintaan Anda. Silakan coba lagi.")
+        except:
+            print(f"[LOCIMEI ERROR] Gagal mengirim pesan error ke user")
 
 # Handler untuk admin (B)
 @app.on_message(filters.reply)
@@ -358,7 +400,7 @@ def handle_reply_from_admin(client, message):
             # Cari pengguna dan permintaan terkait
             user_id, request_data = next(
                 ((uid, req) for uid, requests in user_requests.items() for req in requests if
-                 req["phone_number"] == phone_number),
+                 "phone_number" in req and req["phone_number"] == phone_number),
                 (None, None)
             )
 
@@ -452,7 +494,7 @@ def handle_reply_from_admin(client, message):
 
             # Cari pengguna dan permintaan terkait
             user_id, request_data = next(
-                ((uid, req) for uid, requests in user_requests.items() for req in requests if req["phone_number"] == phone_number),
+                ((uid, req) for uid, requests in user_requests.items() for req in requests if "phone_number" in req and req["phone_number"] == phone_number),
                 (None, None)
             )
 
@@ -542,7 +584,7 @@ def handle_reply_from_admin(client, message):
 
             # Cari pengguna dan permintaan terkait
             user_id, request_data = next(
-                ((uid, req) for uid, requests in user_requests.items() for req in requests if req["imei"] == imei_number),
+                ((uid, req) for uid, requests in user_requests.items() for req in requests if "imei" in req and req["imei"] == imei_number),
                 (None, None)
             )
 
